@@ -1,9 +1,12 @@
 using Hunger.web.Data;
+using Hunger.web.Models;
+using Hunger.web.Services;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.HttpsPolicy;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.UI;
+using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -27,13 +30,53 @@ namespace Hunger.web
         // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
         {
-            services.AddDbContext<ApplicationDbContext>(options =>
-                options.UseSqlServer(
+            services
+                .AddDbContext<ApplicationDbContext>(options =>
+                   options.UseSqlServer(
                     Configuration.GetConnectionString("DefaultConnection")));
-            services.AddDatabaseDeveloperPageExceptionFilter();
-            services.AddDefaultIdentity<IdentityUser>(options => options.SignIn.RequireConfirmedAccount = true)
-                .AddEntityFrameworkStores<ApplicationDbContext>();
+
+            services
+                .AddDatabaseDeveloperPageExceptionFilter();
+
+            //Configure the ASP.NET Identity
+
+            services
+               .AddIdentity<MyIdentityUser, MyIdentityRole>(options =>
+               {
+                   // Sign-In Policy
+                   options.SignIn.RequireConfirmedAccount = true;
+
+                   // Password Policy
+                   options.Password.RequireUppercase = true;
+                   options.Password.RequireLowercase = true;
+                   options.Password.RequireDigit = true;
+                   options.Password.RequireNonAlphanumeric = true;
+                   options.Password.RequiredLength = 8;
+
+                   // User Policy
+                   options.User.RequireUniqueEmail = true;
+               })
+                   .AddEntityFrameworkStores<ApplicationDbContext>()
+                   .AddDefaultTokenProviders();
+
+            // Configure the Identity Application Level Cookie
+            services
+                .ConfigureApplicationCookie(options =>
+                {
+                    options.LoginPath = "/Identity/Account/Login";
+                    options.LogoutPath = "/Identity/Account/Logout";
+                    options.AccessDeniedPath = "/Identity/Account/AccessDenied";
+                    options.ExpireTimeSpan = TimeSpan.FromMinutes(20);
+                    options.SlidingExpiration = true;
+                });
+
             services.AddRazorPages();
+
+            //Register the customized Email Service
+            //--SMTP configuration is in the appsettings.json File
+
+            services
+                .AddSingleton<IEmailSender, MyEmailSender>();
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
